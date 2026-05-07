@@ -1,6 +1,7 @@
 # How to start the project
 
 Steps:
+
 - clone project
 - activate virtual environment on windows in the terminal (venv\Scripts\activate)
 - install all dependencies from requirements.txt
