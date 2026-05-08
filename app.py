@@ -1,27 +1,58 @@
+import os
+
 import httpx
 import streamlit as st
 
 from dotenv import load_dotenv
-import os
-from langchain_mistralai import ChatMistralAI
 from langchain_core.messages import SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from tenacity import (
     retry,
     wait_exponential,
     stop_after_attempt,
     retry_if_exception_type,
 )
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
-llm_mistral = ChatMistralAI(
-    model="mistral-large-latest", api_key=os.getenv("MISTRAL_API_KEY")
-)
+DEFAULT_MODELS = {
+    "mistral": "mistral-large-latest",
+    "gemini": "gemini-2.5-flash",
+}
 
-llm_gemini = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", api_key=os.getenv("GEMINI_API_KEY")
-)
+
+@st.cache_resource
+def get_llm(provider, model):
+    provider = provider.lower()
+
+    if provider == "mistral":
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY is required when LLM_PROVIDER=mistral")
+        return ChatMistralAI(model=model, api_key=api_key)
+
+    if provider == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
+        return ChatGoogleGenerativeAI(model=model, api_key=api_key)
+
+    supported_providers = ", ".join(DEFAULT_MODELS)
+    raise ValueError(
+        f"Unsupported LLM_PROVIDER '{provider}'. Use one of: {supported_providers}"
+    )
+
+
+def invoke_llm(messages):
+    provider = os.getenv("LLM_PROVIDER", "mistral").lower()
+    model = os.getenv("LLM_MODEL", DEFAULT_MODELS.get(provider))
+    if not model:
+        raise ValueError(f"LLM_MODEL is required for provider '{provider}'")
+
+    llm = get_llm(provider, model)
+    response = llm.invoke(messages)
+    return response.content
 
 
 st.title("Interview Coach")
@@ -57,8 +88,7 @@ def get_feedback(question, answer):
         - One specific improvement""")
     ]
 
-    response = llm_mistral.invoke(messages)
-    return response.content
+    return invoke_llm(messages)
 
 
 @retry(
@@ -67,9 +97,7 @@ def get_feedback(question, answer):
     retry=retry_if_exception_type(httpx.HTTPStatusError),
     reraise=True,
 )
-def get_next_question(
-    role, difficulty, asked_questions=None, is_mistral=True, is_gemini=False
-):
+def get_next_question(role, difficulty, asked_questions=None):
     question_list = (
         f"\n Do not repeat these questions: {asked_questions}"
         if asked_questions
@@ -81,8 +109,7 @@ def get_next_question(
     No explanations, no follow-up probes, no commentary.{question_list}
     Just the question.""")
     ]
-    response = llm_mistral.invoke(messages)
-    return response.content
+    return invoke_llm(messages)
 
 
 @retry(
@@ -94,8 +121,7 @@ def get_next_question(
 def get_summary(messages):
     history = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
     message = [SystemMessage(f"Create summary based on whole session {history}")]
-    response = llm_mistral.invoke(message)
-    return response.content
+    return invoke_llm(message)
 
 
 if st.session_state.interview_started:
@@ -114,7 +140,9 @@ if st.session_state.interview_started:
             except Exception as e:
                 print(f"Error type: {type(e).__name__}")
                 feedback = f"⚠️ Feedback currently unavailable due to high traffic, but let's continue!{e}"
-                st.error("Mistral API is not responding. Please check your connection.")
+                st.error(
+                    "The LLM provider is not responding. Please check your connection."
+                )
         st.session_state.messages.append(
             {"role": "assistant", "content": feedback, "type": "feedback"}
         )
@@ -151,7 +179,7 @@ if st.session_state.interview_started:
                     print(f"Error type: {type(e).__name__}")
                     next_question = "I'm having trouble connecting. Could you please try to refresh or wait a moment?"
                     st.error(
-                        "Mistral API is not responding. Please check your connection."
+                        "The LLM provider is not responding. Please check your connection."
                     )
             st.session_state.messages.append(
                 {"role": "assistant", "content": next_question, "type": "question"}
@@ -183,7 +211,9 @@ else:
             except Exception as e:
                 print(f"Error type: {type(e).__name__}")
                 question = "I'm having trouble connecting. Could you please try to refresh or wait a moment?"
-                st.error("Mistral API is not responding. Please check your connection.")
+                st.error(
+                    "The LLM provider is not responding. Please check your connection."
+                )
         st.session_state.messages.append(
             {"role": "assistant", "content": question, "type": "question"}
         )
