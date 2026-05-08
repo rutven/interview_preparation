@@ -17,3 +17,9 @@ To use Gemini instead, set:
 - LLM_PROVIDER=gemini
 - LLM_MODEL=gemini-2.5-flash
 - GEMINI_API_KEY=your-api-key
+
+To use OpenRouter with DeepSeek instead, set:
+
+- LLM_PROVIDER=openrouter
+- LLM_MODEL=deepseek/deepseek-v4-pro
+- OPENROUTER_API_KEY=your-api-key

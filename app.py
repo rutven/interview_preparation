@@ -19,7 +19,34 @@ load_dotenv()
 DEFAULT_MODELS = {
     "mistral": "mistral-large-latest",
     "gemini": "gemini-2.5-flash",
+    "openrouter": "deepseek/deepseek-v4-pro",
 }
+
+
+class OpenRouterChatModel:
+    def __init__(self, model, api_key):
+        self.model = model
+        self.api_key = api_key
+
+    def invoke(self, messages):
+        response = httpx.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": message.content}
+                    for message in messages
+                ],
+            },
+            timeout=60,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
 
 
 @st.cache_resource
@@ -38,6 +65,14 @@ def get_llm(provider, model):
             raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
         return ChatGoogleGenerativeAI(model=model, api_key=api_key)
 
+    if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter"
+            )
+        return OpenRouterChatModel(model=model, api_key=api_key)
+
     supported_providers = ", ".join(DEFAULT_MODELS)
     raise ValueError(
         f"Unsupported LLM_PROVIDER '{provider}'. Use one of: {supported_providers}"
@@ -52,6 +87,8 @@ def invoke_llm(messages):
 
     llm = get_llm(provider, model)
     response = llm.invoke(messages)
+    if isinstance(response, str):
+        return response
     return response.content
 
 
