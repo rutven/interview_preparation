@@ -9,8 +9,17 @@ Steps:
   - LLM_PROVIDER=mistral
   - LLM_MODEL=mistral-large-latest
   - MISTRAL_API_KEY=your-api-key
-- run project with uv run streamlit run app.py in the terminal
-- to exit virtual environment in the terminal execute this command deactivate
+- run project in the terminal
+
+```bash
+uv run streamlit run app.py 
+```
+
+- to exit virtual environment in the terminal execute this command 
+
+```bash
+deactivate
+```
 
 To use Gemini instead, set:
 
