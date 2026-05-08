@@ -3,5 +3,13 @@ name = "interview-preparation"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
-dependencies = []
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "httpx",
+    "langchain-core",
+    "langchain-google-genai",
+    "langchain-mistralai",
+    "python-dotenv",
+    "streamlit",
+    "tenacity",
+]
