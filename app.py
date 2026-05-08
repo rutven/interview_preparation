@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
+from langchain_openai import ChatOpenAI
 from tenacity import (
     retry,
     wait_exponential,
@@ -20,6 +21,7 @@ DEFAULT_MODELS = {
     "mistral": "mistral-large-latest",
     "gemini": "gemini-2.5-flash",
     "openrouter": "deepseek/deepseek-v4-pro",
+    "openai": "gpt-5-nano",
 }
 
 
@@ -72,6 +74,12 @@ def get_llm(provider, model):
                 "OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter"
             )
         return OpenRouterChatModel(model=model, api_key=api_key)
+
+    if provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+        return ChatOpenAI(model=model, api_key=api_key)
 
     supported_providers = ", ".join(DEFAULT_MODELS)
     raise ValueError(

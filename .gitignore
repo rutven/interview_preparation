@@ -254,3 +254,7 @@ __marimo__/
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Claude files
+CLAUDE.md
+.claude/settings.json
